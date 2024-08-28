@@ -1,0 +1,30 @@
+replicaCount: 3
+
+image:
+  repository: redis
+  tag: 6.2-alpine
+  pullPolicy: IfNotPresent
+
+tls:
+  enabled: true
+  caCert: |-
+    -----BEGIN CERTIFICATE-----
+    # Ваш CA сертификат
+    -----END CERTIFICATE-----
+  tlsCert: |-
+    -----BEGIN CERTIFICATE-----
+    # Сертификат Redis ноды
+    -----END CERTIFICATE-----
+  tlsKey: |-
+    -----BEGIN PRIVATE KEY-----
+    # Приватный ключ Redis ноды
+    -----END PRIVATE KEY-----
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+

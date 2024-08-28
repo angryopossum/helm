@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: config-volume
+              mountPath: /usr/local/etc/redis
+            - name: tls-volume
+              mountPath: /tls
+      volumes:
+        - name: config-volume
+          configMap:
+            name: redis-config
+        - name: tls-volume
+          secret:
+            secretName: redis-tls-secret
