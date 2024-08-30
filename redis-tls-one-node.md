@@ -131,3 +131,28 @@
 - **`ConfigMap`**: Містить конфігурацію Redis, що налаштовує використання TLS.
 
 Цей підхід дозволяє використовувати вже існуючі сертифікати у вашому кластері OpenShift для налаштування Redis з підтримкою TLS без необхідності створювати нові секрети.
+
+```yaml
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "redis-tls.name" -}}
+{{- .Chart.Name -}}
+{{- end -}}
+
+{{/*
+Common labels
+*/}}
+{{- define "redis-tls.labels" -}}
+helm.sh/chart: {{ include "redis-tls.name" . }}-{{ .Chart.Version | replace "+" "_" }}
+{{ include "redis-tls.selectorLabels" . }}
+{{- end -}}
+
+{{/*
+Selector labels
+*/}}
+{{- define "redis-tls.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "redis-tls.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+```
