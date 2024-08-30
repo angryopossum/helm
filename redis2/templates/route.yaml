@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: redis-route
+spec:
+  to:
+    kind: Service
+    name: redis-redis-release       # Ім'я вашого сервісу Redis
+  port:
+    targetPort: 6379            # Порт, який використовується Redis
+  tls:
+    termination: edge           # Використання TLS з термінацією на маршруті
+  wildcardPolicy: None
+

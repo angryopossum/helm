@@ -1,0 +1,6 @@
+apiVersion: v2
+name: redis
+description: A Helm chart for Redis on OpenShift
+version: 0.1.0
+appVersion: "6.2.5" # або будь-яка актуальна версія Redis
+
