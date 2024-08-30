@@ -77,8 +77,26 @@ oc logs <redis-pod-name> -n <namespace>
 Моніторинг і тестування: Переконайтеся, що підключення працює належним чином за допомогою тестових запитів і моніторингу.
 Ці кроки дозволять вам розгорнути Redis ноду з TLS за допомогою OpenShift Operator, забезпечивши безпеку комунікацій між вашими додатками та Redis.
 
-
-
+```yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta1
+kind: Redis
+metadata:
+  name: redis-instance
+  namespace: my-namespace
+spec:
+  kubernetesConfig:
+    image: redis:7.0.0
+    serviceType: ClusterIP
+  redisConfig:
+    databases: "1"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "250m"
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+```
 
 
 
