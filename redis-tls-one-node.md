@@ -1,103 +1,133 @@
-Щоб запустити Redis ноду з TLS за допомогою OpenShift Operator, вам потрібно скористатися Redis Operator. Оператори надають спрощений спосіб розгортання та керування базами даних у середовищі Kubernetes/OpenShift, включаючи конфігурацію TLS.
+Якщо у вас уже є секрет у OpenShift з сертифікатами, ви можете використовувати цей секрет у вашому Helm-чарті для налаштування Redis з підтримкою TLS. Вам потрібно буде оновити Helm-чарт, щоб використовувати існуючий секрет, а не створювати новий.
 
-Кроки для налаштування Redis з TLS за допомогою OpenShift Operator:
-Встановіть Redis Operator у ваш кластер OpenShift.
+### Приклад налаштування Helm-чарта з використанням існуючого секрету:
 
-Redis Operator зазвичай доступний у каталозі операторів (OperatorHub) у OpenShift. Ви можете встановити його через веб-консоль OpenShift або за допомогою oc CLI.
+1. **Оновіть файл `values.yaml`:**
 
-Створіть сертифікати для TLS.
+   Вкажіть ім'я вашого існуючого секрету в `values.yaml`:
 
-Перед налаштуванням Redis з TLS вам потрібно створити відповідні сертифікати. Ці сертифікати повинні включати:
+   ```yaml
+   image:
+     repository: redis
+     tag: 7.0
+     pullPolicy: IfNotPresent
 
-Сертифікат сервера (tls.crt).
-Відкритий ключ (tls.key).
-Сертифікат довіреного центру сертифікації (ca.crt).
-Зберіть сертифікати в Secret.
+   tls:
+     enabled: true
+     certSecret: existing-secret-name
+     certFile: /certs/redis.crt
+     keyFile: /certs/redis.key
+     caFile: /certs/ca.crt
 
-Створіть Secret у OpenShift для зберігання ваших TLS сертифікатів:
+   service:
+     name: redis
+     type: ClusterIP
+     port: 6379
+     targetPort: 6379
 
-bash
-Копировать код
-oc create secret generic redis-tls-secret \
-  --from-file=tls.crt=/path/to/tls.crt \
-  --from-file=tls.key=/path/to/tls.key \
-  --from-file=ca.crt=/path/to/ca.crt \
-  --namespace=<namespace>
-Замініть <namespace> на відповідний простір імен у вашому кластері.
+   resources: {}
 
-Налаштуйте Redis з TLS за допомогою CRD (Custom Resource Definition).
+   persistence:
+     enabled: true
+     storageClass: "standard"
+     accessModes:
+       - ReadWriteOnce
+     size: 1Gi
+   ```
 
-Створіть файл конфігурації для Redis з TLS. Використовуючи Redis Operator, ви можете створити файл YAML, який визначає налаштування Redis, включаючи використання TLS.
+   Замість `existing-secret-name` вкажіть ім'я вашого секрету.
 
-Приклад файлу redis-tls.yaml:
+2. **Оновіть `templates/deployment.yaml` для використання існуючого секрету:**
 
-yaml
-Копировать код
-apiVersion: redis.redis.opstreelabs.in/v1beta1
-kind: Redis
-metadata:
-  name: redis-tls
-  namespace: <namespace>
-spec:
-  kubernetesConfig:
-    image: redis:7.0.0
-    serviceType: ClusterIP
-    tlsEnabled: true
-    tlsSecret: redis-tls-secret
-    tlsCertFile: "/tls/tls.crt"
-    tlsKeyFile: "/tls/tls.key"
-    tlsCaCertFile: "/tls/ca.crt"
-  redisConfig:
-    databases: "1"
-    # Додайте інші параметри конфігурації, які вам потрібні
-У цьому файлі:
+   В файлі `templates/deployment.yaml` забезпечте, щоб конфігурація Redis використовувала ваш існуючий секрет для сертифікатів. Модифікуйте розділ `volumes` і `volumeMounts` для підключення існуючого секрету:
 
-tlsEnabled: true вказує, що TLS увімкнено.
-tlsSecret вказує на ім'я Secret, що містить сертифікати.
-tlsCertFile, tlsKeyFile, tlsCaCertFile вказують шляхи до файлів сертифікатів всередині контейнера.
-Розгорніть Redis з TLS.
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: {{ include "redis-tls.fullname" . }}
+     labels:
+       {{- include "redis-tls.labels" . | nindent 4 }}
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: {{ include "redis-tls.name" . }}
+     template:
+       metadata:
+         labels:
+           app: {{ include "redis-tls.name" . }}
+       spec:
+         containers:
+           - name: redis
+             image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+             imagePullPolicy: {{ .Values.image.pullPolicy }}
+             command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+             volumeMounts:
+               - name: redis-config
+                 mountPath: /usr/local/etc/redis
+                 subPath: redis.conf
+               - name: redis-certs
+                 mountPath: /certs
+             ports:
+               - containerPort: 6379
+             readinessProbe:
+               httpGet:
+                 path: /health
+                 port: 6379
+               initialDelaySeconds: 10
+               timeoutSeconds: 5
+         volumes:
+           - name: redis-config
+             configMap:
+               name: redis-config
+           - name: redis-certs
+             secret:
+               secretName: {{ .Values.tls.certSecret }}
+   ```
 
-Застосуйте конфігураційний файл redis-tls.yaml у вашому кластері:
+   У цьому прикладі `redis-certs` — це том, який монтує секрет, що містить сертифікати для Redis.
 
-bash
-Копировать код
-oc apply -f redis-tls.yaml
-Це створить Redis Pod з підтримкою TLS.
+3. **Перевірте наявність існуючого секрету:**
 
-Перевірте статус Redis.
+   Переконайтеся, що ваш секрет існує у вашому namespace:
 
-Після розгортання Redis з TLS перевірте, чи працює він правильно:
+   ```bash
+   oc get secrets
+   ```
 
-bash
-Копировать код
-oc get pods -n <namespace>
-oc logs <redis-pod-name> -n <namespace>
-Додаткові кроки:
-Налаштування клієнтів: Для підключення до Redis з TLS клієнти повинні використовувати ті ж самі сертифікати або довірені сертифікати.
-Моніторинг і тестування: Переконайтеся, що підключення працює належним чином за допомогою тестових запитів і моніторингу.
-Ці кроки дозволять вам розгорнути Redis ноду з TLS за допомогою OpenShift Operator, забезпечивши безпеку комунікацій між вашими додатками та Redis.
+   Ви повинні побачити ваш секрет у списку.
 
-```yaml
-apiVersion: redis.redis.opstreelabs.in/v1beta1
-kind: Redis
-metadata:
-  name: redis-instance
-  namespace: my-namespace
-spec:
-  kubernetesConfig:
-    image: redis:7.0.0
-    serviceType: ClusterIP
-  redisConfig:
-    databases: "1"
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "250m"
-    limits:
-      memory: "128Mi"
-      cpu: "500m"
-```
+4. **Оновіть конфігурацію Redis:**
 
+   Якщо конфігурація Redis вже є в `ConfigMap`, переконайтеся, що в `redis.conf` правильно вказані шляхи до сертифікатів:
 
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: redis-config
+   data:
+     redis.conf: |
+       tls-port 6379
+       tls-cert-file /certs/redis.crt
+       tls-key-file /certs/redis.key
+       tls-ca-cert-file /certs/ca.crt
+       tls-auth-clients no
+   ```
 
+5. **Перезавантажте ваш Helm-чарт:**
 
+   Після внесення змін, перезавантажте Helm-чарт:
+
+   ```bash
+   helm upgrade redis-tls ./redis-tls
+   ```
+
+### Пояснення
+
+- **`certSecret`**: Вказує на існуючий секрет, що містить сертифікати для TLS.
+- **`volumeMounts`** та **`volumes`**: Налаштовують контейнер для монтування сертифікатів з секрету в потрібну директорію.
+- **`ConfigMap`**: Містить конфігурацію Redis, що налаштовує використання TLS.
+
+Цей підхід дозволяє використовувати вже існуючі сертифікати у вашому кластері OpenShift для налаштування Redis з підтримкою TLS без необхідності створювати нові секрети.
