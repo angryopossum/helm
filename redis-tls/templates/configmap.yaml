@@ -6,6 +6,7 @@ data:
   redis.conf: |
     tls-port 6379
     port 0
+    tls-cluster yes
     tls-cert-file /certs/redis.crt
     tls-key-file /certs/redis.key
     tls-ca-cert-file /certs/ca.crt

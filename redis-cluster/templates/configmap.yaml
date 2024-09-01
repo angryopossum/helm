@@ -1,17 +1,18 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config
+  name: {{ .Values.tls.configMapName }}
 data:
-  redis.conf: |-
-    port 0
+  redis.conf: |
     tls-port 6379
-    tls-cert-file /tls/tls.crt
-    tls-key-file /tls/tls.key
-    tls-ca-cert-file /tls/ca.crt
+    port 0
     tls-cluster yes
+    tls-cert-file /certs/redis.crt
+    tls-key-file /certs/redis.key
+    tls-ca-cert-file /certs/ca.crt
+    # tls-auth-clients no
+    # protected-mode no
     cluster-enabled yes
-    cluster-config-file nodes.conf
+    cluster-config-file /tmp/nodes.conf
     cluster-node-timeout 5000
-    appendonly yes
 

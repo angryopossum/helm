@@ -1,0 +1,1 @@
+oc exec -it redis-tls-cffdb8757-6qxb4 -- redis-cli --tls --cert /certs/redis.crt --key /certs/redis.key --cacert /certs/ca.crt --cluster create 10.128.39.117:6379 10.128.57.240:6379 10.128.88.89:6379 --cluster-replicas 1

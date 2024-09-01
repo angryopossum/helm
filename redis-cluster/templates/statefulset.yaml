@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "redis-tls.fullname" . }}
+  labels:
+    {{- include "redis-tls.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "redis-tls.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "redis-tls.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "redis-tls.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- include "redis-tls.labels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: redis
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - name: config
+          mountPath: /usr/local/etc/redis/redis.conf
+          subPath: redis.conf
+        - name: tls
+          mountPath: /tls
+        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "redis-tls.fullname" . }}-config
+      - name: tls
+        secret:
+          secretName: {{ .Values.tls.secretName }}
+

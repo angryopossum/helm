@@ -1,31 +1,43 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis
+  name: {{ include "redis-tls.fullname" . }}
+  labels:
+    {{- include "redis-tls.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: redis
+      app: {{ include "redis-tls.name" . }}
   template:
     metadata:
       labels:
-        app: redis
+        app: {{ include "redis-tls.name" . }}
     spec:
       containers:
         - name: redis
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          ports:
-            - containerPort: 6379
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["redis-server", "/usr/local/etc/redis.conf"]
           volumeMounts:
-            - name: config-volume
-              mountPath: /usr/local/etc/redis
-            - name: tls-volume
-              mountPath: /tls
+            - name: redis-config
+              mountPath: /usr/local/etc/redis.conf
+              subPath: redis.conf
+            - name: redis-certs
+              mountPath: /certs
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 6379
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
       volumes:
-        - name: config-volume
+        - name: redis-config
           configMap:
-            name: redis-config
-        - name: tls-volume
+            name: {{ .Values.tls.configMapName }}
+        - name: redis-certs
           secret:
-            secretName: redis-tls-secret
+            secretName: {{ .Values.tls.certSecret }}
+
