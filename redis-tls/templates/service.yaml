@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis-tls.fullname" . }}
+  labels:
+    {{- include "redis-tls.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 6379
+  selector:
+    app: {{ include "redis-tls.name" . }}
+
